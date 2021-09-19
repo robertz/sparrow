@@ -3,14 +3,16 @@ component {
         return this;
     }
 
+    // ===============================================================================================================
+    // Application.cfc specific functions
+    // ===============================================================================================================
     public boolean function onRequestStart (required string targetPage) {
         return true;
     }
 
     public void function onRequest(required string targetPage) {
         // redirect to main handler if one was not supplied
-        if(!cgi.path_info.listLen("/")) location(url = "/main", addToken = false);
-        var out = "";
+        if(!cgi.path_info.listLen("/")) location(url = "/" & variables.fwSettings.defaultHandler, addToken = false);
         variables['rc'] = {
             'handler': getHandler(),
             'action': getAction()
@@ -20,35 +22,20 @@ component {
         mergeScopes();
         // execute the handler if it is present
         processHandler(rc, prc);
-        // generate the main body
-        if(directoryExists(expandPath(".") & "/views/#rc.handler#") && !fileExists(expandPath(".") & "/views/#rc.handler#/#rc.action#.cfm")) {
-            if(fileExists(expandPath(".") & "/views/#rc.handler#/index.cfm") && rc.action == "index") {
-                saveContent variable = "out" {
-                    include "/views/#rc.handler#/index.cfm";
-                }
-            }
-            // missing view
-            writeOutput("<h3>Sparrow :: Missing view</h3>");
-            writeOutput("The view <strong>" & rc.handler & "/" & rc.action & "</strong> does not exist!");
-            abort;
-            //throw(type = "MissingInclude", message = "The view " & rc.handler & "/" & rc.action & " does not exist!");
-        }
-        if(fileExists(expandPath(".") & "/views/#rc.handler#/#rc.action#.cfm")) {
-            saveContent variable = "out" {
-                include "/views/#rc.handler#/#rc.action#.cfm";
-            }
-        }
         // place the body in the layout
-        writeOutput(processLayout("/layouts/main.cfm", out));
+        writeOutput(processLayout("/layouts/main.cfm", processView()));
         return;
     }
 
+    // ===============================================================================================================
+    // Framework specific functions
+    // ===============================================================================================================
     private string function getHandler () {
         return cgi.path_info.listGetAt(1, "/");
     }
 
     private string function getAction () {
-        return cgi.path_info.listLen("/") > 1 ? cgi.path_info.listGetAt(2, "/") : "index";
+        return cgi.path_info.listLen("/") > 1 ? cgi.path_info.listGetAt(2, "/") : variables.fwSettings.defaultAction;
     }
 
     private void function mergeScopes () {
@@ -78,10 +65,44 @@ component {
         }
     }
 
+    private string function processView (string view) {
+        var out = "";
+        // generate the main body
+        if(directoryExists(expandPath(".") & "/views/#rc.handler#") && !fileExists(expandPath(".") & "/views/#rc.handler#/#rc.action#.cfm")) {
+            if(fileExists(expandPath(".") & "/views/#rc.handler#/index.cfm") && rc.action == variables.fwSettings.defaultAction) {
+                saveContent variable = "out" {
+                    include "/views/#rc.handler#/index.cfm";
+                }
+            }
+            // missing view
+            writeOutput("<h3>Sparrow :: Missing view</h3>");
+            writeOutput("The view <strong>" & rc.handler & "/" & rc.action & "</strong> does not exist!");
+            abort;
+        }
+        if(fileExists(expandPath(".") & "/views/#rc.handler#/#rc.action#.cfm")) {
+            saveContent variable = "out" {
+                include "/views/#rc.handler#/#rc.action#.cfm";
+            }
+        }
+        return out;
+    }
+
     private string function processLayout (string layout = "/layouts/main.cfm", string body) {
         saveContent variable="response" {
             include "#layout#";
         }
         return response;
     }
+
+    public string function renderView (string view = "") {
+        var out = "";
+        try{
+            saveContent variable = "out" {
+                include "/views/#view#.cfm";
+            }
+        }
+        catch(any e){}
+        return out;
+    }
+
 }
