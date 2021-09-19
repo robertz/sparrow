@@ -8,6 +8,7 @@ component {
     }
 
     public void function onRequest(required string targetPage) {
+        // redirect to main handler if one was not supplied
         if(!cgi.path_info.listLen("/")) location(url = "/main", addToken = false);
         var out = "";
         variables['rc'] = {
@@ -15,21 +16,29 @@ component {
             'action': getAction()
         };
         variables['prc'] = {};
+        // merge url, form, and path params to rc scope
         mergeScopes();
+        // execute the handler if it is present
         processHandler(rc, prc);
+        // generate the main body
         if(directoryExists(expandPath(".") & "/views/#rc.handler#") && !fileExists(expandPath(".") & "/views/#rc.handler#/#rc.action#.cfm")) {
-            if(fileExists(expandPath(".") & "/views/#rc.handler#/index.cfm")) {
+            if(fileExists(expandPath(".") & "/views/#rc.handler#/index.cfm") && rc.action == "index") {
                 saveContent variable = "out" {
                     include "/views/#rc.handler#/index.cfm";
                 }
             }
+            // missing view
+            writeOutput("<h3>Sparrow :: Missing view</h3>");
+            writeOutput("The view <strong>" & rc.handler & "/" & rc.action & "</strong> does not exist!");
+            abort;
+            //throw(type = "MissingInclude", message = "The view " & rc.handler & "/" & rc.action & " does not exist!");
         }
         if(fileExists(expandPath(".") & "/views/#rc.handler#/#rc.action#.cfm")) {
             saveContent variable = "out" {
                 include "/views/#rc.handler#/#rc.action#.cfm";
             }
         }
-
+        // place the body in the layout
         writeOutput(processLayout("/layouts/main.cfm", out));
         return;
     }
@@ -60,14 +69,18 @@ component {
         // check to see if the handler exists
         try {
             var obj = createObject("component", "handlers." & rc.handler);
-            obj[rc.action](rc, prc);
+            if(isDefined('obj.' & rc.action)) obj[rc.action](rc, prc);
         }
-        catch (any e) {}
+        catch (any e) {
+            writeOutput("<h3>Sparrow :: Missing Handler</h3>");
+            writeOutput("The handler <strong>" & rc.handler & "</strong> does not exist!");
+            abort;
+        }
     }
 
     private string function processLayout (string layout = "/layouts/main.cfm", string body) {
         saveContent variable="response" {
-            include '#layout#';
+            include "#layout#";
         }
         return response;
     }
