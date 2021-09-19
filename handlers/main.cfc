@@ -1,8 +1,9 @@
 component {
 
     function index(rc, prc) {
-        rc['more'] = "come cool stuff here";
+        rc['more'] = "Some cool stuff here";
 
+        prc['other'] = "The private requests context";
         writeDump(var = [rc, prc], abort = 1);
     }
 

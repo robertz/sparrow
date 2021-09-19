@@ -1,4 +1,4 @@
-component extends = "models.Request" {
-    this.name = "spaghetti";
+component extends = "models.Sparrow" {
+    this.name = "sparrow";
     this.clientManagement = true;
 }
