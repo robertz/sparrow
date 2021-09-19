@@ -10,16 +10,13 @@ component {
     public void function onRequest(required string targetPage) {
         if(!cgi.path_info.listLen("/")) location(url = "/main", addToken = false);
         var out = "";
-
         variables['rc'] = {
             'handler': getHandler(),
             'action': getAction()
         };
         variables['prc'] = {};
-
         mergeScopes();
         processHandler(rc, prc);
-
         if(directoryExists(expandPath(".") & "/views/#rc.handler#") && !fileExists(expandPath(".") & "/views/#rc.handler#/#rc.action#.cfm")) {
             if(fileExists(expandPath(".") & "/views/#rc.handler#/index.cfm")) {
                 saveContent variable = "out" {
@@ -32,7 +29,8 @@ component {
                 include "/views/#rc.handler#/#rc.action#.cfm";
             }
         }
-        writeOutput(out);
+
+        writeOutput(processLayout("/layouts/main.cfm", out));
         return;
     }
 
@@ -67,4 +65,10 @@ component {
         catch (any e) {}
     }
 
+    private string function processLayout (string layout = "/layouts/main.cfm", string body) {
+        saveContent variable="response" {
+            include '#layout#';
+        }
+        return response;
+    }
 }

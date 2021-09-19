@@ -1,1 +1,0 @@
-<cfdump var="#cgi.path_info#" />
