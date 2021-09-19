@@ -1,2 +1,5 @@
-<cfdump var="#rc#" label="rc" />
-<cfdump var="#cgi.path_info#" label="path_info"/>
+<cfoutput>
+<div class="container">
+    <h1>#prc.message#</h1>
+</div>
+</cfoutput>
