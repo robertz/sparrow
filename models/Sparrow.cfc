@@ -50,41 +50,55 @@ component {
 
     private void function processRoutes () {
         var pathParts = variables.rc.pathInfo.listToArray("/");
-        var match = 1;
+        var routeCount = variables.fwSettings.routes.len();
         var matchIndex = 0;
         var matchKey = "";
-        var removePositions = "";
-        variables.fwSettings.routes.each((value, routeIndex) => {
-            var key = lcase(structKeyList(value));
-            var keyParts = key.listToArray("/");
-            if(!matchIndex && pathParts.len() >= keyParts.len()){
-                rPos = "";
-                var routeVariables = {};
-                keyParts.each((segment, segmentIndex) => {
-                    var isVariable = !!segment.find(":");
-                    match = isVariable ? true : (match && (lcase(pathParts[segmentIndex]) == lcase(segment)));
+        var routeVariables = {};
+
+        var hit = true;
+
+        // loop through all the routes
+        for (var i = 1; i <= routeCount; i++){
+
+            var route = variables.fwSettings.routes[i];
+            var key = structKeyList(route);
+            var data = route[key];
+            var routeParts = key.listToArray("/");
+            var routePartCount = routeParts.len();
+
+            if (matchIndex) continue;
+
+            // loop through the path data
+            for (var j = 1; j <= pathParts.len(); j++){
+                if (j <= routePartCount) {
+                    var isVariable = !!routeParts[j].find(":");
+                    hit = hit && isVariable ? true : (pathParts[j] == routeParts[j]);
                     if (isVariable) {
-                        routeVariables[segment.replace(":", "")] = pathParts[segmentIndex];
-                        rPos = rPos.listAppend(segmentIndex);
+                        routeVariables[routeParts[j].replace(":", "")] = pathParts[j];
                     }
-                });
-                if (match) {
-                    matchIndex = routeIndex;
+                }
+                if (hit) {
+                    matchIndex = i;
                     matchKey = key;
                     rc.append(routeVariables);
                 }
             }
-        });
+        }
+        // adjust the scopes
+
         if(matchIndex){
             rc.handler = variables.fwSettings.routes[matchIndex][matchKey].listGetAt(1, "/");
             rc.action = variables.fwSettings.routes[matchIndex][matchKey].listGetAt(2, "/");
-            var removeOrder = rPos.listSort(sort_type = "numeric", sortOrder = "desc");
-            var t = listToArray(removeOrder);
-            for(var i in t){
-                pathParts.deleteAt(i)
+
+            var dirtyKeys = matchKey.listToArray("/");
+            var dirtyLen = dirtyKeys.len();
+            for(var i = dirtyLen; i > 0; i--){
+                if(dirtyKeys[i].find(":")) pathParts.deleteAt(i);
             }
             rc.pathInfo = pathParts.toList("/");
         }
+
+
     }
 
     private void function mergeScopes () {
