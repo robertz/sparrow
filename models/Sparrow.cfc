@@ -57,7 +57,7 @@ component {
         variables.fwSettings.routes.each((value, routeIndex) => {
             var key = lcase(structKeyList(value));
             var keyParts = key.listToArray("/");
-            if(!matchIndex){
+            if(!matchIndex && pathParts.len() >= keyParts.len()){
                 rPos = "";
                 var routeVariables = {};
                 keyParts.each((segment, segmentIndex) => {
