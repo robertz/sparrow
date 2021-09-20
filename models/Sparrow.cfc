@@ -13,15 +13,25 @@ component {
     public void function onRequest(required string targetPage) {
         // redirect to main handler if one was not supplied
         if(!cgi.path_info.listLen("/")) location(url = "/" & variables.fwSettings.defaultHandler, addToken = false);
-        variables['rc'] = {
-            'handler': getHandler(),
-            'action': getAction()
-        };
+
+        variables['rc']['pathInfo'] = cgi.path_info;
+        variables['rc']['handler'] = getHandler();
+        variables['rc']['action'] = getAction();
+
         variables['prc'] = {};
+
+        // process routes
+        processRoutes();
+
         // merge url, form, and path params to rc scope
         mergeScopes();
+
         // execute the handler if it is present
         processHandler(rc, prc);
+
+        // cleanup
+        rc.delete("pathInfo");
+
         // place the body in the layout
         writeOutput(processLayout("/layouts/main.cfm", processView()));
         return;
@@ -31,17 +41,56 @@ component {
     // Framework specific functions
     // ===============================================================================================================
     private string function getHandler () {
-        return cgi.path_info.listGetAt(1, "/");
+        return rc.pathInfo.listGetAt(1, "/");
     }
 
     private string function getAction () {
-        return cgi.path_info.listLen("/") > 1 ? cgi.path_info.listGetAt(2, "/") : variables.fwSettings.defaultAction;
+        return rc.pathInfo.listLen("/") > 1 ? rc.pathInfo.listGetAt(2, "/") : variables.fwSettings.defaultAction;
+    }
+
+    private void function processRoutes () {
+        var pathParts = variables.rc.pathInfo.listToArray("/");
+        var match = 1;
+        var matchIndex = 0;
+        var matchKey = "";
+        var removePositions = "";
+        variables.fwSettings.routes.each((value, routeIndex) => {
+            var key = lcase(structKeyList(value));
+            var keyParts = key.listToArray("/");
+            if(!matchIndex){
+                rPos = "";
+                var routeVariables = {};
+                keyParts.each((segment, segmentIndex) => {
+                    var isVariable = !!segment.find(":");
+                    match = isVariable ? true : (match && (lcase(pathParts[segmentIndex]) == lcase(segment)));
+                    if (isVariable) {
+                        routeVariables[segment.replace(":", "")] = pathParts[segmentIndex];
+                        rPos = rPos.listAppend(segmentIndex);
+                    }
+                });
+                if (match) {
+                    matchIndex = routeIndex;
+                    matchKey = key;
+                    rc.append(routeVariables);
+                }
+            }
+        });
+        if(matchIndex){
+            rc.handler = variables.fwSettings.routes[matchIndex][matchKey].listGetAt(1, "/");
+            rc.action = variables.fwSettings.routes[matchIndex][matchKey].listGetAt(2, "/");
+            var removeOrder = rPos.listSort(sort_type = "numeric", sortOrder = "desc");
+            var t = listToArray(removeOrder);
+            for(var i in t){
+                pathParts.deleteAt(i)
+            }
+            rc.pathInfo = pathParts.toList("/");
+        }
     }
 
     private void function mergeScopes () {
         rc.append(url);
         rc.append(form);
-        var path = cgi.path_info.listToArray("/");
+        var path = rc.pathInfo.listToArray("/");
         // merge additional path_info values into rc scope
         if(path.len() > 2){
             path.deleteAt(2);

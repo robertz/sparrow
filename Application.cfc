@@ -4,7 +4,11 @@ component extends = "models.Sparrow" {
 
     variables['fwSettings'] = {
         'defaultHandler': "main",
-        'defaultAction': "index"
+        'defaultAction': "index",
+        'routes': [
+            { '/debug/key/:key': '/main/debug' },
+            { '/debug': '/main/debug' }
+        ]
     };
 
 }
